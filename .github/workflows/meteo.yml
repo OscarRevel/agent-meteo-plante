@@ -30,7 +30,6 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          METEOFRANCE_API_KEY: ${{ secrets.METEOFRANCE_API_KEY }}
           DRY_RUN: ${{ github.event.inputs.mode == 'dry' && '1' || '' }}
         run: python3 meteo_plante.py ${{ (github.event.inputs.mode == 'dry' && 'test') || github.event.inputs.mode || 'run' }}
 
