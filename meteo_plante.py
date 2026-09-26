@@ -13,7 +13,6 @@ Variables d'environnement :
     DRY_RUN=1                          affiche les messages au lieu de les envoyer
     STATE_FILE                         chemin du fichier d'état (défaut : state.json)
 """
-import html
 import json
 import os
 import sys
@@ -62,16 +61,6 @@ ORAGE_CODES = {95, 96, 99}         # codes WMO orage
 GRELE_CODES = {96, 99}             # orage avec grêle
 NIVEAUX = {1: "Attention", 2: "Fort", 3: "Critique"}
 
-# Vigilance officielle Météo-France (Bouches-du-Rhône)
-DEPARTEMENT = "13"
-VIGI_URL = "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours"
-VIGI_TOKEN_URL = "https://portail-api.meteofrance.fr/token"
-PHENOMENES = {"1": "Vent violent", "2": "Pluie-inondation", "3": "Orages",
-              "5": "Neige-verglas", "6": "Canicule", "7": "Grand froid"}
-JAUNE_DECLENCHE = {"1", "3", "5", "7"}   # le jaune suffit pour vent, orages, neige, grand froid
-COULEURS = {1: "verte", 2: "jaune", 3: "orange", 4: "rouge"}
-VIGI_FAILS_AVANT_AVERTISSEMENT = 3        # ~9 h sans vigilance -> on te prévient
-
 HOURLY = ["temperature_2m", "relative_humidity_2m", "precipitation",
           "weather_code", "wind_gusts_10m", "cape"]
 DAILY = ["temperature_2m_min", "temperature_2m_max", "precipitation_sum",
@@ -114,85 +103,6 @@ def get_forecast():
     data = _fetch(None)
     data["_source"] = "Open-Meteo (meilleur modèle disponible)"
     return data
-
-
-def _vigi_headers():
-    """Clé API (en-tête 'apikey') en priorité, sinon OAuth2 avec l'application ID."""
-    key = os.environ.get("METEOFRANCE_API_KEY")
-    if key:
-        return {"apikey": key, "accept": "application/json"}
-    appid = os.environ.get("METEOFRANCE_APP_ID")
-    if appid:
-        req = urllib.request.Request(VIGI_TOKEN_URL, data=b"grant_type=client_credentials",
-                                     headers={"Authorization": "Basic " + appid})
-        with urllib.request.urlopen(req, timeout=20) as r:
-            return {"Authorization": "Bearer " + json.load(r)["access_token"],
-                    "accept": "application/json"}
-    return None
-
-
-def get_vigilance():
-    """Carte de vigilance en cours, ou None si aucune clé n'est configurée."""
-    last = None
-    for attempt in range(2):
-        try:
-            headers = _vigi_headers()
-            if headers is None:
-                return None
-            req = urllib.request.Request(VIGI_URL, headers=headers)
-            with urllib.request.urlopen(req, timeout=30) as r:
-                return json.load(r)
-        except Exception as e:
-            last = e
-            time.sleep(5)
-    raise RuntimeError(f"Vigilance Météo-France indisponible : {last}")
-
-
-def _iso(s):
-    try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00")) if s else None
-    except ValueError:
-        return None
-
-
-def evaluate_vigilance(vigi, now):
-    """Déclencheurs issus de la carte de vigilance (J et J+1) pour le département."""
-    best = {}  # phénomène -> (couleur, début)
-
-    def keep(pid, color, begin):
-        cur = best.get(pid)
-        if cur is None or color > cur[0] or (color == cur[0] and begin and cur[1] and begin < cur[1]):
-            best[pid] = (color, begin)
-
-    for period in vigi.get("product", {}).get("periods", []):
-        doms = [d for d in period.get("timelaps", {}).get("domain_ids", [])
-                if str(d.get("domain_id")) == DEPARTEMENT]
-        if not doms:
-            continue
-        for ph in doms[0].get("phenomenon_items", []):
-            pid = str(ph.get("phenomenon_id"))
-            if pid not in PHENOMENES:
-                continue
-            items = ph.get("timelaps_items") or []
-            if items:
-                for it in items:
-                    end = _iso(it.get("end_time"))
-                    if end and end <= now:
-                        continue
-                    keep(pid, int(it.get("color_id", 1)), _iso(it.get("begin_time")))
-            else:
-                end = _iso(period.get("end_validity_time"))
-                if end and end <= now:
-                    continue
-                keep(pid, int(ph.get("phenomenon_max_color_id", 1)), _iso(period.get("begin_validity_time")))
-
-    out = []
-    for pid, (color, begin) in best.items():
-        if color >= 3 or (color == 2 and pid in JAUNE_DECLENCHE):
-            when = f"dès {_fmt_t(begin.astimezone(TZ))}" if begin and begin > now else "en cours"
-            out.append({"cat": "vigilance", "level": {2: 1, 3: 2, 4: 3}[color],
-                        "msg": f"Vigilance {COULEURS[color]} Météo-France : {PHENOMENES[pid]} ({when})"})
-    return sorted(out, key=lambda t: -t["level"])
 
 
 # --------------------------------------------------------------------------
@@ -319,7 +229,7 @@ def evaluate(data, now):
 # Logique "rentrer / ressortir"
 # --------------------------------------------------------------------------
 DEFAULT_STATE = {"inside": False, "level": 0, "clear_runs": 0,
-                 "last_summary": "", "fail_count": 0, "vigi_fail_count": 0}
+                 "last_summary": "", "fail_count": 0}
 
 
 def load_state():
@@ -336,11 +246,8 @@ def save_state(state):
         f.write("\n")
 
 
-def decide(state, triggers, can_clear=True):
-    """Met à jour l'état et renvoie les événements à notifier.
-
-    can_clear=False (source de données partielle) : on ne compte pas le passage comme "calme".
-    """
+def decide(state, triggers):
+    """Met à jour l'état et renvoie les événements à notifier."""
     level = max((t["level"] for t in triggers), default=0)
     events = []
     if triggers:
@@ -351,7 +258,7 @@ def decide(state, triggers, can_clear=True):
         elif level > state["level"]:
             events.append(("aggravation", level))
         state["level"] = level
-    elif state["inside"] and can_clear:
+    elif state["inside"]:
         state["clear_runs"] += 1
         if state["clear_runs"] >= CLEAR_RUNS_TO_EXIT:
             state.update(inside=False, level=0, clear_runs=0)
@@ -389,7 +296,6 @@ def format_summary(data, now, state, triggers):
              f"Max demain : {demain:.1f} °C" if demain is not None else "Max demain : n/d",
              f"Rafales max : {max(gusts):.0f} km/h" if gusts else "Rafales : n/d",
              f"Pluie {WINDOW_H} h : {sum(precs):.1f} mm" if precs else "Pluie : n/d",
-             f"Vigilance Météo-France ({DEPARTEMENT}) : {data.get('_vigi', 'non configurée')}",
              ""]
     if state["inside"]:
         lines.append("🏠 Plante : <b>à l'intérieur</b>")
@@ -451,35 +357,13 @@ def main(argv):
     state["fail_count"] = 0
     triggers = evaluate(data, now)
 
-    # Vigilance officielle : un échec ne bloque jamais les alertes basées sur les prévisions
-    try:
-        vigi = get_vigilance()
-        if vigi is None:
-            data["_vigi"] = "non configurée"
-        else:
-            vt = evaluate_vigilance(vigi, now)
-            triggers = sorted(triggers + vt, key=lambda t: -t["level"])
-            data["_vigi"] = "; ".join(t["msg"].replace("Vigilance ", "").replace(" Météo-France :", "")
-                                     for t in vt) if vt else "RAS"
-            if state["vigi_fail_count"] >= VIGI_FAILS_AVANT_AVERTISSEMENT:
-                send("✅ <b>Agent météo</b> : vigilance Météo-France de nouveau disponible.", silent=True)
-            state["vigi_fail_count"] = 0
-    except Exception as e:
-        print(e, file=sys.stderr)
-        data["_vigi"] = "indisponible"
-        state["vigi_fail_count"] += 1
-        if state["vigi_fail_count"] == VIGI_FAILS_AVANT_AVERTISSEMENT:
-            send("⚠️ <b>Agent météo</b> : la vigilance Météo-France ne répond plus depuis ~9 h "
-                 "(clé API expirée ?). Les alertes basées sur les prévisions continuent.\n"
-                 f"<code>{html.escape(str(e)[:200])}</code>")
-
     if mode == "test":
         send("✅ <b>Test de l'agent météo réussi</b>\n\n" + format_summary(data, now, state, triggers)
              + ("\n\nDéclencheurs actuels :\n" + _bullets(triggers) if triggers else "\n\nAucun déclencheur actuellement."))
         return 0
 
     sent = False
-    for kind, level in decide(state, triggers, can_clear=data["_vigi"] != "indisponible"):
+    for kind, level in decide(state, triggers):
         silent = now.hour in NIGHT_HOURS and level < 2
         send(format_event(kind, level, triggers), silent=silent)
         sent = True
