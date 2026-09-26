@@ -275,13 +275,13 @@ def format_event(kind, level, triggers):
         icon = "🚨" if level == 3 else "🪴"
         return (f"{icon} <b>Rentre la plante</b> (niveau {NIVEAUX[level]})\n\n"
                 f"{_bullets(triggers)}\n\n"
-                f"<i>Prochaines {WINDOW_H} h à Aix. Je te préviens quand tu pourras la ressortir.</i>")
+                f"<i>Prochaines {WINDOW_H} h à Aix-en-Provence. Je te préviens quand tu pourras la ressortir.</i>")
     if kind == "aggravation":
         icon = "🚨" if level == 3 else "⚠️"
         return (f"{icon} <b>Alerte renforcée : niveau {NIVEAUX[level]}</b>\n\n"
                 f"{_bullets(triggers)}\n\nLa plante doit rester à l'intérieur.")
     return (f"🌿 <b>Tu peux ressortir la plante</b>\n\n"
-            f"Aucun risque prévu à Aix sur les {WINDOW_H} prochaines heures.")
+            f"Aucun risque prévu à Aix-en-Provence sur les {WINDOW_H} prochaines heures.")
 
 
 def format_summary(data, now, state, triggers):
@@ -291,7 +291,7 @@ def format_summary(data, now, state, triggers):
     precs = [r["precipitation"] for r in rows if r["precipitation"] is not None]
     tmax_d = (data.get("daily", {}).get("temperature_2m_max") or [None, None])
     demain = tmax_d[1] if len(tmax_d) > 1 else None
-    lines = [f"📋 <b>Point météo Aix</b> ({now:%d/%m %Hh%M})",
+    lines = [f"📋 <b>Point météo Aix-en-Provence</b> ({now:%d/%m %Hh%M})",
              f"Min {WINDOW_H} h : {min(temps):.1f} °C" if temps else "Min : n/d",
              f"Max demain : {demain:.1f} °C" if demain is not None else "Max demain : n/d",
              f"Rafales max : {max(gusts):.0f} km/h" if gusts else "Rafales : n/d",
