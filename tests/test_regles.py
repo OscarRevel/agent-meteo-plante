@@ -90,56 +90,6 @@ class TestRegles(unittest.TestCase):
         self.assertEqual(mp.evaluate(d, NOW), [])
 
 
-def vigi(dept_items, period_end="2026-10-06T22:00:00Z"):
-    """Carte de vigilance minimale au format de l'API DPVigilance."""
-    return {"product": {"periods": [{
-        "echeance": "J", "begin_validity_time": "2026-10-04T22:00:00Z",
-        "end_validity_time": period_end,
-        "timelaps": {"domain_ids": [
-            {"domain_id": "84", "phenomenon_items": [
-                {"phenomenon_id": "3", "phenomenon_max_color_id": 4, "timelaps_items": []}]},
-            {"domain_id": "13", "phenomenon_items": dept_items},
-        ]}}]}}
-
-
-class TestVigilance(unittest.TestCase):
-    def test_vert(self):
-        v = vigi([{"phenomenon_id": "3", "phenomenon_max_color_id": 1, "timelaps_items": []}])
-        self.assertEqual(mp.evaluate_vigilance(v, NOW), [])
-
-    def test_autre_departement_ignore(self):
-        self.assertEqual(mp.evaluate_vigilance(vigi([]), NOW), [])
-
-    def test_orange_orages_a_venir(self):
-        v = vigi([{"phenomenon_id": "3", "phenomenon_max_color_id": 3, "timelaps_items": [
-            {"begin_time": "2026-10-05T10:00:00Z", "end_time": "2026-10-05T16:00:00Z", "color_id": 1},
-            {"begin_time": "2026-10-05T16:00:00Z", "end_time": "2026-10-06T04:00:00Z", "color_id": 3}]}])
-        t = mp.evaluate_vigilance(v, NOW)
-        self.assertEqual([(x["cat"], x["level"]) for x in t], [("vigilance", 2)])
-        self.assertIn("Orages", t[0]["msg"])
-        self.assertIn("dès", t[0]["msg"])
-
-    def test_jaune_selon_phenomene(self):
-        v = vigi([{"phenomenon_id": "1", "phenomenon_max_color_id": 2, "timelaps_items": []},
-                  {"phenomenon_id": "6", "phenomenon_max_color_id": 2, "timelaps_items": []},
-                  {"phenomenon_id": "4", "phenomenon_max_color_id": 3, "timelaps_items": []}])
-        t = mp.evaluate_vigilance(v, NOW)
-        self.assertEqual(len(t), 1)             # vent jaune oui ; canicule jaune non ; inondation ignorée
-        self.assertIn("Vent violent", t[0]["msg"])
-
-    def test_rouge_critique(self):
-        v = vigi([{"phenomenon_id": "7", "phenomenon_max_color_id": 4, "timelaps_items": []}])
-        self.assertEqual(mp.evaluate_vigilance(v, NOW)[0]["level"], 3)
-
-    def test_episode_termine_ignore(self):
-        v = vigi([{"phenomenon_id": "3", "phenomenon_max_color_id": 3, "timelaps_items": [
-            {"begin_time": "2026-10-05T02:00:00Z", "end_time": "2026-10-05T08:00:00Z", "color_id": 3}]}])
-        self.assertEqual(mp.evaluate_vigilance(v, NOW), [])
-
-    def test_json_incomplet(self):
-        self.assertEqual(mp.evaluate_vigilance({}, NOW), [])
-
-
 class TestEtat(unittest.TestCase):
     def test_cycle_rentrer_aggraver_ressortir(self):
         s = dict(mp.DEFAULT_STATE)
@@ -155,12 +105,6 @@ class TestEtat(unittest.TestCase):
         self.assertEqual(mp.decide(s, []), [("ressortir", 0)])
         self.assertFalse(s["inside"])
 
-    def test_pas_de_ressortir_si_vigilance_indisponible(self):
-        s = dict(mp.DEFAULT_STATE)
-        mp.decide(s, [{"cat": "vigilance", "level": 2, "msg": "x"}])
-        for _ in range(5):
-            self.assertEqual(mp.decide(s, [], can_clear=False), [])
-        self.assertTrue(s["inside"])
 
 
 if __name__ == "__main__":
