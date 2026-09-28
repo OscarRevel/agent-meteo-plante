@@ -61,10 +61,14 @@ class TestRegles(unittest.TestCase):
         c = cats(mp.evaluate(fake(overrides={20: {"precipitation": 2.0, "cape": 2000}}), NOW))
         self.assertEqual(c["orage"], 2)
 
-    def test_pluie_prolongee(self):
-        ov = {h: {"precipitation": 0.5} for h in range(18, 25)}  # 7 h de pluie
-        self.assertEqual(cats(mp.evaluate(fake(overrides=ov), NOW)), {"pluie": 1})
-        self.assertEqual(cats(mp.evaluate(fake(phours=(0, 4, 5, 0)), NOW)), {"pluie": 1})
+    def test_pluie_faible_ignoree(self):
+        ov = {h: {"precipitation": 0.5} for h in range(18, 30)}  # 12 h de pluie faible = 6 mm
+        self.assertEqual(mp.evaluate(fake(overrides=ov), NOW), [])
+        self.assertEqual(mp.evaluate(fake(phours=(0, 8, 10, 12)), NOW), [])  # plusieurs jours pluvieux
+
+    def test_pluie_abondante(self):
+        ov = {h: {"precipitation": 3.0} for h in range(18, 25)}  # 7 h à 3 mm/h = 21 mm
+        self.assertEqual(cats(mp.evaluate(fake(overrides=ov), NOW)), {"pluie": 2})
 
     def test_humidite_fraiche(self):
         ov = {h: {"relative_humidity_2m": 90, "temperature_2m": 13.0} for h in range(22, 30)}
