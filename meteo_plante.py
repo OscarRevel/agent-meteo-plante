@@ -35,8 +35,8 @@ NIGHT_HOURS = set(range(22, 24)) | set(range(0, 7))  # notifications silencieuse
 
 SEUILS = {
     # 1. Froid
-    "froid_attention": 12.0,   # min < 12 °C
-    "froid_fort": 10.0,        # min < 10 °C
+    "froid_attention": 12.0,   # (égal à froid_fort : pas de niveau Attention pour le froid)
+    "froid_fort": 12.0,        # min < 12 °C -> niveau Fort
     "gel": 2.0,                # min <= 2 °C
     # 2. Pluie / humidité
     "averse_mm_h": 10.0,       # forte averse : >= 10 mm en 1 h
