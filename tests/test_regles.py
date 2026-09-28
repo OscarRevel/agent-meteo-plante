@@ -39,7 +39,8 @@ class TestRegles(unittest.TestCase):
 
     def test_froid_niveaux(self):
         # heure 28 = demain 04h (dans la fenêtre de 30 h)
-        self.assertEqual(cats(mp.evaluate(fake(overrides={28: {"temperature_2m": 11.5}}), NOW)), {"froid": 1})
+        self.assertEqual(mp.evaluate(fake(overrides={28: {"temperature_2m": 12.5}}), NOW), [])
+        self.assertEqual(cats(mp.evaluate(fake(overrides={28: {"temperature_2m": 11.5}}), NOW)), {"froid": 2})
         self.assertEqual(cats(mp.evaluate(fake(overrides={28: {"temperature_2m": 9.0}}), NOW)), {"froid": 2})
         self.assertEqual(cats(mp.evaluate(fake(overrides={28: {"temperature_2m": 2.0}}), NOW)), {"froid": 3})
 
