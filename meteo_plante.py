@@ -40,9 +40,7 @@ SEUILS = {
     "gel": 2.0,                # min <= 2 °C
     # 2. Pluie / humidité
     "averse_mm_h": 10.0,       # forte averse : >= 10 mm en 1 h
-    "pluie_heures": 6,         # pluie prolongée : >= 6 h de pluie dans la fenêtre
-    "pluie_mm_fenetre": 20.0,  # cumul fort dans la fenêtre
-    "pluie_heures_jour": 3,    # jour "pluvieux" : >= 3 h de pluie
+    "pluie_mm_fenetre": 20.0,  # pluie abondante : >= 20 mm cumulés dans la fenêtre
     "humidite_pct": 80,        # HR > 80 %...
     "humidite_temp_max": 15.0, # ...avec T < 15 °C...
     "humidite_heures": 6,      # ...pendant >= 6 h d'affilée
@@ -180,20 +178,14 @@ def evaluate(data, now):
             out.append({"cat": "averse", "level": 2,
                         "msg": f"Forte averse : {pmax:.1f} mm/h ({_fmt_t(tp)})"})
 
-    # 2b. Pluie prolongée
+    # 2b. Pluie abondante (la pluie faible ou courte est ignorée)
     if precs:
         wet_h = sum(1 for p, _ in precs if p >= PLUIE_MIN_MM)
         total = sum(p for p, _ in precs)
         if total >= S["pluie_mm_fenetre"]:
             out.append({"cat": "pluie", "level": 2,
                         "msg": f"Pluie abondante : {total:.0f} mm sur {WINDOW_H} h ({wet_h} h de pluie)"})
-        elif wet_h >= S["pluie_heures"]:
-            out.append({"cat": "pluie", "level": 1,
-                        "msg": f"Pluie prolongée : {wet_h} h de pluie sur {WINDOW_H} h ({total:.0f} mm)"})
     d = data.get("daily", {})
-    ph = d.get("precipitation_hours") or []
-    if not any(t["cat"] == "pluie" for t in out) and _consecutive_days(ph, S["pluie_heures_jour"]):
-        out.append({"cat": "pluie", "level": 1, "msg": "Plusieurs jours de pluie consécutifs prévus"})
 
     # 2c. Humidité + fraîcheur
     flags = [r["relative_humidity_2m"] is not None and r["temperature_2m"] is not None
