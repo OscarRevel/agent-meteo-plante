@@ -15,7 +15,7 @@ Pas de spam : tant que la plante est dedans, tu ne reçois un nouveau message qu
 |---|---|---|---|
 | Froid (min sur 30 h) | < 12 °C | < 10 °C | ≤ 2 °C (gel) |
 | Orage / forte averse | | orage prévu ou ≥ 10 mm/h | grêle prévue |
-| Pluie prolongée | ≥ 6 h de pluie sur 30 h, ou 2 jours pluvieux de suite | ≥ 20 mm sur 30 h | |
+| Pluie abondante | | ≥ 20 mm cumulés sur 30 h | |
 | Humidité | > 80 % et < 15 °C pendant ≥ 6 h d'affilée | | |
 | Vent (rafales) | ≥ 45 km/h | ≥ 60 km/h | ≥ 80 km/h (tempête) |
 | Chaleur | ≥ 32 °C deux jours de suite | ≥ 35 °C deux jours de suite | |
