@@ -13,7 +13,7 @@ Pas de spam : tant que la plante est dedans, tu ne reçois un nouveau message qu
 
 | Risque | Attention | Fort | Critique |
 |---|---|---|---|
-| Froid (min sur 30 h) | < 12 °C | < 10 °C | ≤ 2 °C (gel) |
+| Froid (min sur 30 h) | | < 12 °C | ≤ 2 °C (gel) |
 | Orage / forte averse | | orage prévu ou ≥ 10 mm/h | grêle prévue |
 | Pluie abondante | | ≥ 20 mm cumulés sur 30 h | |
 | Humidité | > 80 % et < 15 °C pendant ≥ 6 h d'affilée | | |
