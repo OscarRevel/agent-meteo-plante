@@ -1,7 +1,7 @@
 {
-  "clear_runs": 1,
+  "clear_runs": 0,
   "fail_count": 0,
-  "inside": true,
-  "last_summary": "2026-10-02",
-  "level": 1
+  "inside": false,
+  "last_summary": "2026-10-03",
+  "level": 0
 }
